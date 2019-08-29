@@ -1,0 +1,40 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - alpha.alaska.rudeboy.io
+  resources:
+  - repos
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - alpha.alaska.rudeboy.io
+  resources:
+  - repos/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - tekton.dev
+  resources:
+  - pipelineresources
+  - taskruns
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch

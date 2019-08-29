@@ -1,0 +1,7 @@
+apiVersion: alpha.alaska.rudeboy.io/v1
+kind: Repo
+metadata:
+  name: repo-sample
+spec:
+  url: https://github.com/rudoi/alaska-test.git
+  branch: master

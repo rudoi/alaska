@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: dump-readme-task
+spec:
+  inputs:
+    params:
+    - name: path
+      type: string
+    resources:
+    - name: repo
+      type: git
+  steps:
+  - name: dump-path
+    image: ubuntu 
+    command: ["cat"]
+    args: ["$(inputs.resources.repo.path)/$(inputs.params.path)"]

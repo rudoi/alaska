@@ -1,0 +1,7 @@
+version: "2"
+domain: alaska.rudeboy.io
+repo: github.com/rudoi/alaska
+resources:
+- group: alpha
+  version: v1
+  kind: Repo
