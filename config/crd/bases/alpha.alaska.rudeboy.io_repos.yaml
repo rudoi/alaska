@@ -36,10 +36,13 @@ spec:
           properties:
             branch:
               type: string
+            cluster:
+              type: string
             url:
               type: string
           required:
           - branch
+          - cluster
           - url
           type: object
         status:
@@ -49,6 +52,8 @@ spec:
               type: string
             pipeline:
               properties:
+                completed:
+                  type: boolean
                 ref:
                   description: ObjectReference contains enough information to let
                     you inspect or modify the referred object.

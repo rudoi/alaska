@@ -24,11 +24,13 @@ import (
 
 // RepoSpec defines the desired state of Repo
 type RepoSpec struct {
-	URL    string `json:"url"`
-	Branch string `json:"branch"`
+	URL     string `json:"url"`
+	Branch  string `json:"branch"`
+	Cluster string `json:"cluster"`
 }
 
 type PipelineStatus struct {
+	Completed bool                    `json:"completed,omitempty"`
 	Ref       *corev1.ObjectReference `json:"ref,omitempty"`
 	Status    string                  `json:"status,omitempty"`
 	Succeeded bool                    `json:"succeeded,omitempty"`

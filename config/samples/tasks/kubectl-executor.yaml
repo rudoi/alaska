@@ -10,8 +10,13 @@ spec:
     resources:
     - name: repo
       type: git
+    - name: cluster
+      type: cluster
   steps:
-  - name: dump-path
-    image: ubuntu 
-    command: ["cat"]
-    args: ["$(inputs.resources.repo.path)/$(inputs.params.path)"]
+  - name: kubectl-apply
+    image: lachlanevenson/k8s-kubectl 
+    command: ["kubectl"]
+    args:
+      - "--kubeconfig"
+      - "/workspace/${inputs.resources.cluster.name}/kubeconfig"
+      - "cluster-info"

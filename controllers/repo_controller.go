@@ -137,9 +137,15 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	if repo.Status.Pipeline == nil || !repo.Status.Pipeline.Succeeded {
+	if repo.Status.Pipeline == nil || !repo.Status.Pipeline.Completed {
 		if err := r.updatePipelineRunStatus(ctx, repo, sha); err != nil {
 			log.Error(err, "error waiting for pipeline to succeed")
+			return ctrl.Result{}, nil
+		}
+
+		if repo.Status.Pipeline.Status == "Failed" {
+			log.Info("pipeline failed, check the logs")
+			repo.Status.Pipeline.Completed = true
 			return ctrl.Result{}, nil
 		}
 
@@ -149,6 +155,7 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 
 		log.Info("pipeline for commit succeeded", "commit", sha)
+		repo.Status.Pipeline.Completed = true
 	}
 
 	return ctrl.Result{}, nil
@@ -255,6 +262,12 @@ func (r *RepoReconciler) triggerTaskRun(ctx context.Context, repo *alphav1.Repo,
 					Name: "repo",
 					ResourceRef: tektonv1.PipelineResourceRef{
 						Name: repo.GetName(),
+					},
+				},
+				{
+					Name: "cluster",
+					ResourceRef: tektonv1.PipelineResourceRef{
+						Name: repo.Spec.Cluster,
 					},
 				},
 			},

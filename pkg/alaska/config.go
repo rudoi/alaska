@@ -25,6 +25,10 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 				Name: "repo",
 				Type: tektonv1.PipelineResourceTypeGit,
 			},
+			{
+				Name: "cluster",
+				Type: tektonv1.PipelineResourceTypeCluster,
+			},
 		},
 		Tasks: []tektonv1.PipelineTask{},
 	}
@@ -46,6 +50,10 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 					{
 						Name:     "repo",
 						Resource: "repo",
+					},
+					{
+						Name:     "cluster",
+						Resource: "cluster",
 					},
 				},
 			},
