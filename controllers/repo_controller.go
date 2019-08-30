@@ -39,12 +39,8 @@ import (
 	knative "knative.dev/pkg/apis"
 
 	alphav1 "github.com/rudoi/alaska/api/v1"
+	"github.com/rudoi/alaska/pkg/alaska"
 )
-
-// Config is some config
-type Config struct {
-	Paths []string `json:"paths,omitempty"`
-}
 
 // RepoReconciler reconciles a Repo object
 type RepoReconciler struct {
@@ -97,7 +93,7 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	sha := branch.GetCommit().GetSHA()
+	sha := branch.GetCommit().GetSHA()[:7]
 	content, _, _, err := r.GitHub.Repositories.GetContents(ctx, owner, repoName, "alaska.yaml", &github.RepositoryContentGetOptions{Ref: sha})
 	if err != nil {
 		log.Error(err, "unable to get config")
@@ -110,9 +106,14 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	config := &Config{}
+	config := &alaska.Config{}
 	if err := yaml.Unmarshal(decodedConfig, config); err != nil {
 		log.Error(err, "unable to unmarshal config")
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.ensurePipelineForRepo(ctx, repo, config); err != nil {
+		log.Error(err, "unable to ensure pipeline for repo")
 		return ctrl.Result{}, nil
 	}
 
@@ -130,14 +131,14 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
-		if err := r.updateTaskRunStatus(ctx, repo, sha); err != nil {
+		if err := r.updatePipelineRunStatus(ctx, repo, sha); err != nil {
 			log.Error(err, "error initializing pipeline status")
 			return ctrl.Result{}, nil
 		}
 	}
 
 	if repo.Status.Pipeline == nil || !repo.Status.Pipeline.Succeeded {
-		if err := r.updateTaskRunStatus(ctx, repo, sha); err != nil {
+		if err := r.updatePipelineRunStatus(ctx, repo, sha); err != nil {
 			log.Error(err, "error waiting for pipeline to succeed")
 			return ctrl.Result{}, nil
 		}
@@ -234,8 +235,8 @@ func (r *RepoReconciler) patchGitResource(ctx context.Context, repo *alphav1.Rep
 	return nil
 }
 
-func (r *RepoReconciler) triggerTaskRun(ctx context.Context, repo *alphav1.Repo, sha string, config *Config) error {
-	taskRun := &tektonv1.TaskRun{
+func (r *RepoReconciler) triggerTaskRun(ctx context.Context, repo *alphav1.Repo, sha string, config *alaska.Config) error {
+	taskRun := &tektonv1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", repo.GetName(), sha),
 			Namespace: repo.GetNamespace(),
@@ -248,28 +249,17 @@ func (r *RepoReconciler) triggerTaskRun(ctx context.Context, repo *alphav1.Repo,
 				},
 			},
 		},
-		Spec: tektonv1.TaskRunSpec{
-			Inputs: tektonv1.TaskRunInputs{
-				Params: []tektonv1.Param{
-					{
-						Name: "path",
-						Value: tektonv1.ArrayOrString{
-							Type:      tektonv1.ParamTypeString,
-							StringVal: config.Paths[0],
-						},
-					},
-				},
-				Resources: []tektonv1.TaskResourceBinding{
-					{
-						Name: "repo",
-						ResourceRef: tektonv1.PipelineResourceRef{
-							Name: repo.GetName(),
-						},
+		Spec: tektonv1.PipelineRunSpec{
+			Resources: []tektonv1.PipelineResourceBinding{
+				{
+					Name: "repo",
+					ResourceRef: tektonv1.PipelineResourceRef{
+						Name: repo.GetName(),
 					},
 				},
 			},
-			TaskRef: &tektonv1.TaskRef{
-				Name: "dump-readme-task",
+			PipelineRef: tektonv1.PipelineRef{
+				Name: repo.GetName(),
 			},
 		},
 	}
@@ -281,32 +271,62 @@ func (r *RepoReconciler) triggerTaskRun(ctx context.Context, repo *alphav1.Repo,
 	return nil
 }
 
-func (r *RepoReconciler) updateTaskRunStatus(ctx context.Context, repo *alphav1.Repo, sha string) error {
+func (r *RepoReconciler) updatePipelineRunStatus(ctx context.Context, repo *alphav1.Repo, sha string) error {
 	query := types.NamespacedName{
 		Namespace: repo.Namespace,
 		Name:      fmt.Sprintf("%s-%s", repo.GetName(), sha),
 	}
 
-	taskRun := &tektonv1.TaskRun{}
-	if err := r.Get(ctx, query, taskRun); err != nil {
+	pipelineRun := &tektonv1.PipelineRun{}
+	if err := r.Get(ctx, query, pipelineRun); err != nil {
 		return err
 	}
 
 	repo.Status.Pipeline = &alphav1.PipelineStatus{
 		Ref: &corev1.ObjectReference{
-			Name:       taskRun.GetName(),
-			Namespace:  taskRun.GetNamespace(),
-			Kind:       taskRun.Kind,
-			APIVersion: taskRun.APIVersion,
-			UID:        taskRun.GetUID(),
+			Name:       pipelineRun.GetName(),
+			Namespace:  pipelineRun.GetNamespace(),
+			Kind:       pipelineRun.Kind,
+			APIVersion: pipelineRun.APIVersion,
+			UID:        pipelineRun.GetUID(),
 		},
 	}
 
-	for _, condition := range taskRun.Status.Conditions {
+	for _, condition := range pipelineRun.Status.Conditions {
 		if condition.Type == knative.ConditionSucceeded {
 			repo.Status.Pipeline.Status = condition.Reason
 			repo.Status.Pipeline.Succeeded = condition.IsTrue()
 		}
 	}
 	return nil
+}
+
+func (r *RepoReconciler) ensurePipelineForRepo(ctx context.Context, repo *alphav1.Repo, cfg *alaska.Config) error {
+	query := types.NamespacedName{
+		Namespace: repo.GetNamespace(),
+		Name:      repo.GetName(),
+	}
+
+	pipeline := &tektonv1.Pipeline{}
+	err := r.Get(ctx, query, pipeline)
+	if apierrors.IsNotFound(err) {
+		// create
+		pipeline = &tektonv1.Pipeline{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: repo.GetNamespace(),
+				Name:      repo.GetName(),
+			},
+			Spec: cfg.ToPipelineSpec(),
+		}
+
+		return r.Create(ctx, pipeline)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// update
+	pipeline.Spec = cfg.ToPipelineSpec()
+	return r.Update(ctx, pipeline)
 }

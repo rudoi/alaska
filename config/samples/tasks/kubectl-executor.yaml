@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1alpha1
-kind: Task
+kind: ClusterTask
 metadata:
-  name: dump-readme-task
+  name: alaska-kubectl-executor
 spec:
   inputs:
     params:
