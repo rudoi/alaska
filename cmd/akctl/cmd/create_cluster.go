@@ -6,6 +6,7 @@ import (
 )
 
 type ClusterOptions struct {
+	Name string
 }
 
 var co = &ClusterOptions{}
@@ -25,5 +26,8 @@ func RunClusterCreate(co *ClusterOptions) error {
 }
 
 func init() {
+	createClusterCmd.Flags().StringVarP(&co.Name, "name", "", "", "name for set of Kubernetes credentials - required")
+	_ = createClusterCmd.MarkFlagRequired("name")
+
 	createCmd.AddCommand(createClusterCmd)
 }
