@@ -6,5 +6,5 @@ workflow "tests" {
 action "let's try some docker stuff" {
   uses = "docker://alpine:latest"
   runs = "sh"
-  args = "-c, ls, -ltr, /"
+  args = "-c \"ls -ltr\""
 }
