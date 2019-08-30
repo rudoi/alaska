@@ -5,29 +5,30 @@ import (
 	"k8s.io/klog"
 )
 
-type ClusterOptions struct {
+type ServiceAccountOptions struct {
 	Name string
 }
 
-var co = &ClusterOptions{}
+var sao = &ServiceAccountOptions{}
 
-var createClusterCmd = &cobra.Command{
-	Use:   "cluster",
-	Short: "save Kubernetes authentication information for use with Alaska",
+var createServiceAccountCmd = &cobra.Command{
+	Use:   "serviceaccount",
+	Short: "create a K8S ServiceAccount for use with Alaska",
+	Long:  "create a Kubernetes ServiceAccount and make its credentials available to Alaska",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := RunClusterCreate(co); err != nil {
+		if err := RunServiceAccountCreate(sao); err != nil {
 			klog.Exit(err)
 		}
 	},
 }
 
-func RunClusterCreate(co *ClusterOptions) error {
+func RunServiceAccountCreate(co *ServiceAccountOptions) error {
 	return nil
 }
 
 func init() {
-	createClusterCmd.Flags().StringVarP(&co.Name, "name", "", "", "name for set of Kubernetes credentials - required")
-	_ = createClusterCmd.MarkFlagRequired("name")
+	createServiceAccountCmd.Flags().StringVarP(&sao.Name, "name", "", "", "name for set of Kubernetes credentials - required")
+	_ = createServiceAccountCmd.MarkFlagRequired("name")
 
-	createCmd.AddCommand(createClusterCmd)
+	createCmd.AddCommand(createServiceAccountCmd)
 }
