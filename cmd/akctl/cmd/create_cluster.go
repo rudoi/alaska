@@ -14,13 +14,13 @@ var createClusterCmd = &cobra.Command{
 	Use:   "cluster",
 	Short: "save Kubernetes authentication information for use with Alaska",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := RunCreate(co); err != nil {
+		if err := RunClusterCreate(co); err != nil {
 			klog.Exit(err)
 		}
 	},
 }
 
-func RunCreate(co *ClusterOptions) error {
+func RunClusterCreate(co *ClusterOptions) error {
 	return nil
 }
 

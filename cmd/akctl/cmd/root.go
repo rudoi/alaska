@@ -12,7 +12,7 @@ var rootCmd = &cobra.Command{
 	Short: "akctl generates and applies configuration for Alaska",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Do Stuff Here
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 
