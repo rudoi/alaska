@@ -1,4 +1,4 @@
-# Alaska :snowboarder: - simple GitOps CI/CD for Kubernetes
+# Alaska :snowboarder: - simple GitOps CI/CD for Kubernetes :ship:
 
 Alaska is a Kubernetes-native CI/CD orchestrator backed by [Tekton](https://github.com/tektoncd/pipeline). It responds to changes on a specified branch of a GitHub repo and applies Kubernetes manifests contained within.
 
