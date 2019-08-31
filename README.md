@@ -39,7 +39,7 @@ Nope, coming soon! :sweat_smile:
 - [ ] configurable ordering (apply `crds/` then apply `manifests/`, etc)
 - [ ] define `kustomize` executor
 - [ ] define `helm` executor
-- [ ] define `kubectl` executor
+- [x] define `kubectl` executor
 - [x] specify multiple paths for manifests
 - [x] fetch `alaska.yaml` from repo for additional configuration
 - [x] trigger pipeline on changes

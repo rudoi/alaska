@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"path/filepath"
 	"time"
@@ -20,6 +21,8 @@ import (
 )
 
 type ServiceAccountOptions struct {
+	AlaskaKubeconfig string
+	AlaskaNamespace  string
 	Name             string
 	TargetKubeconfig string
 	TargetNamespace  string
@@ -49,6 +52,17 @@ var createServiceAccountCmd = &cobra.Command{
 
 func RunServiceAccountCreate(sao *ServiceAccountOptions) error {
 	_ = flag.Set("kubeconfig", sao.TargetKubeconfig)
+	targetCfg, err := config.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	targetClient, err := client.New(targetCfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil
+	}
+
+	_ = flag.Set("kubeconfig", sao.AlaskaKubeconfig)
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return err
@@ -67,20 +81,22 @@ func RunServiceAccountCreate(sao *ServiceAccountOptions) error {
 			Namespace: sao.TargetNamespace,
 		},
 	}
-	if err := client.Create(ctx, sa); err != nil {
+	if err := targetClient.Create(ctx, sa); err != nil {
 		return err
 	}
 
 	time.Sleep(5 * time.Second)
 
-	if err := client.Get(ctx, types.NamespacedName{Namespace: sao.TargetNamespace, Name: sao.Name}, sa); err != nil {
+	if err := targetClient.Get(ctx, types.NamespacedName{Namespace: sao.TargetNamespace, Name: sao.Name}, sa); err != nil {
 		return err
 	}
 
 	secret := &corev1.Secret{}
-	if err := client.Get(ctx, types.NamespacedName{Namespace: sao.TargetNamespace, Name: sa.Secrets[0].Name}, secret); err != nil {
+	if err := targetClient.Get(ctx, types.NamespacedName{Namespace: sao.TargetNamespace, Name: sa.Secrets[0].Name}, secret); err != nil {
 		return err
 	}
+
+	cadata := base64.StdEncoding.EncodeToString(secret.Data["ca.crt"])
 
 	resource := &tektonv1.PipelineResource{
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,11 +116,11 @@ func RunServiceAccountCreate(sao *ServiceAccountOptions) error {
 				},
 				{
 					Name:  "url",
-					Value: cfg.Host,
+					Value: targetCfg.Host,
 				},
 				{
 					Name:  "cadata",
-					Value: string(secret.Data["ca.crt"]),
+					Value: cadata,
 				},
 				{
 					Name:  "token",
@@ -122,10 +138,14 @@ func init() {
 	// required
 	createServiceAccountCmd.Flags().StringVarP(&sao.Name, "name", "", "", "name for set of Kubernetes credentials - required")
 	_ = createServiceAccountCmd.MarkFlagRequired("name")
+	createServiceAccountCmd.Flags().StringVarP(&sao.TargetKubeconfig, "target-kubeconfig", "", filepath.Join(home, ".kube", "config"), "kubeconfig to use for creating serviceaccount")
+	_ = createServiceAccountCmd.MarkFlagRequired("target-kubeconfig")
+	createServiceAccountCmd.Flags().StringVarP(&sao.TargetNamespace, "target-namespace", "", "default", "namespace for new serviceaccount")
+	_ = createServiceAccountCmd.MarkFlagRequired("target-namespace")
 
 	// optional
-	createServiceAccountCmd.Flags().StringVarP(&sao.TargetKubeconfig, "target-kubeconfig", "s", filepath.Join(home, ".kube", "config"), "kubeconfig to use for creating serviceaccount")
-	createServiceAccountCmd.Flags().StringVarP(&sao.TargetNamespace, "target-namespace", "", "default", "namespace for new serviceaccount")
+	createServiceAccountCmd.Flags().StringVarP(&sao.AlaskaKubeconfig, "alaska-kubeconfig", "", filepath.Join(home, ".kube", "config"), "kubeconfig to use for creating serviceaccount")
+	createServiceAccountCmd.Flags().StringVarP(&sao.TargetNamespace, "alaska-namespace", "", "default", "namespace for new serviceaccount")
 
 	createCmd.AddCommand(createServiceAccountCmd)
 }

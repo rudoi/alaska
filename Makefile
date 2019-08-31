@@ -28,7 +28,7 @@ run: generate fmt vet manifests
 # Install CRDs into a cluster
 install: manifests
 	kubectl apply --filename https://storage.googleapis.com/tekton-releases/latest/release.yaml
-	kubectl apply -f config/samples/tasks
+	kubectl apply -f config/tasks
 	kustomize build config/crd | kubectl apply -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
