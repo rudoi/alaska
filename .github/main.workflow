@@ -4,7 +4,7 @@ workflow "tests" {
 }
 
 action "let's try some docker stuff" {
-  uses = "docker://alpine:latest"
-  runs = "ls"
-  args = "-ltr"
+  uses = "docker://golang:1.12.7"
+  runs = "sh"
+  args = "-c 'go mod download && go test -v ./pkg/...'"
 }
