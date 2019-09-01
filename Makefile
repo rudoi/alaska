@@ -21,6 +21,10 @@ test: generate fmt vet manifests
 manager: generate fmt vet
 	go build -o bin/manager main.go
 
+# Build akctl binary
+akctl: generate fmt vet
+	go build -o bin/akctl cmd/akctl/main.go
+
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
 	go run ./main.go
