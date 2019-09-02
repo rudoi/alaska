@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/homedir"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,15 +25,6 @@ type ServiceAccountOptions struct {
 	Name             string
 	TargetKubeconfig string
 	TargetNamespace  string
-}
-
-var (
-	scheme = runtime.NewScheme()
-)
-
-func init() {
-	_ = corev1.AddToScheme(scheme)
-	_ = tektonv1.AddToScheme(scheme)
 }
 
 var sao = &ServiceAccountOptions{}

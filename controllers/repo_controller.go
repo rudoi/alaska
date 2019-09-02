@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -69,7 +68,7 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	patch := client.MergeFrom(repo.DeepCopyObject())
 
 	defer func() {
-		if err := r.Status().Patch(ctx, repo, patch); err != nil {
+		if err := r.Status().Patch(ctx, repo, patch); err != nil && !apierrors.IsNotFound(err) {
 			log.Error(err, "error patching status")
 		}
 	}()
@@ -106,11 +105,13 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	config := &alaska.Config{}
+	config := &alphav1.Config{}
 	if err := yaml.Unmarshal(decodedConfig, config); err != nil {
 		log.Error(err, "unable to unmarshal config")
 		return ctrl.Result{}, nil
 	}
+
+	repo.Status.Config = config
 
 	if err := r.ensurePipelineForRepo(ctx, repo, config); err != nil {
 		log.Error(err, "unable to ensure pipeline for repo")
@@ -127,35 +128,33 @@ func (r *RepoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
-		if err := r.triggerTaskRun(ctx, repo, sha, config); err != nil {
+		if err := alaska.TriggerPipeline(ctx, r.Client, repo, config, sha); err != nil {
 			return ctrl.Result{}, err
-		}
-
-		if err := r.updatePipelineRunStatus(ctx, repo, sha); err != nil {
-			log.Error(err, "error initializing pipeline status")
-			return ctrl.Result{}, nil
 		}
 	}
 
-	if repo.Status.Pipeline == nil || !repo.Status.Pipeline.Completed {
-		if err := r.updatePipelineRunStatus(ctx, repo, sha); err != nil {
-			log.Error(err, "error waiting for pipeline to succeed")
-			return ctrl.Result{}, nil
-		}
+	for i := range repo.Status.Runs {
+		if !repo.Status.Runs[i].Completed {
+			r.Log.Info("pizza time, run has NOT completed", "run", repo.Status.Runs[i])
+			if err := r.updatePipelineRunStatus(ctx, repo, repo.Status.Runs[i], sha); err != nil {
+				log.Error(err, "error waiting for pipeline to succeed")
+				return ctrl.Result{}, nil
+			}
 
-		if repo.Status.Pipeline.Status == "Failed" {
-			log.Info("pipeline failed, check the logs")
-			repo.Status.Pipeline.Completed = true
-			return ctrl.Result{}, nil
-		}
+			if repo.Status.Runs[i].Status == "Failed" {
+				log.Info("pipeline failed, check the logs")
+				repo.Status.Runs[i].Completed = true
+				continue
+			}
 
-		if !repo.Status.Pipeline.Succeeded {
-			log.Info("waiting for pipeline to succeed")
-			return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
-		}
+			if !repo.Status.Runs[i].Succeeded {
+				log.Info("waiting for pipeline to succeed")
+				return ctrl.Result{RequeueAfter: 3 * time.Second}, nil
+			}
 
-		log.Info("pipeline for commit succeeded", "commit", sha)
-		repo.Status.Pipeline.Completed = true
+			log.Info("pipeline for commit succeeded", "commit", sha)
+			repo.Status.Runs[i].Completed = true
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -242,52 +241,10 @@ func (r *RepoReconciler) patchGitResource(ctx context.Context, repo *alphav1.Rep
 	return nil
 }
 
-func (r *RepoReconciler) triggerTaskRun(ctx context.Context, repo *alphav1.Repo, sha string, config *alaska.Config) error {
-	taskRun := &tektonv1.PipelineRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", repo.GetName(), sha),
-			Namespace: repo.GetNamespace(),
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: repo.APIVersion,
-					Kind:       repo.Kind,
-					Name:       repo.GetName(),
-					UID:        repo.GetUID(),
-				},
-			},
-		},
-		Spec: tektonv1.PipelineRunSpec{
-			Resources: []tektonv1.PipelineResourceBinding{
-				{
-					Name: "repo",
-					ResourceRef: tektonv1.PipelineResourceRef{
-						Name: repo.GetName(),
-					},
-				},
-				{
-					Name: "cluster",
-					ResourceRef: tektonv1.PipelineResourceRef{
-						Name: repo.Spec.Cluster,
-					},
-				},
-			},
-			PipelineRef: tektonv1.PipelineRef{
-				Name: repo.GetName(),
-			},
-		},
-	}
-
-	if err := r.Create(ctx, taskRun); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *RepoReconciler) updatePipelineRunStatus(ctx context.Context, repo *alphav1.Repo, sha string) error {
+func (r *RepoReconciler) updatePipelineRunStatus(ctx context.Context, repo *alphav1.Repo, runStatus *alphav1.PipelineStatus, sha string) error {
 	query := types.NamespacedName{
-		Namespace: repo.Namespace,
-		Name:      fmt.Sprintf("%s-%s", repo.GetName(), sha),
+		Namespace: runStatus.Ref.Namespace,
+		Name:      runStatus.Ref.Name,
 	}
 
 	pipelineRun := &tektonv1.PipelineRun{}
@@ -295,26 +252,24 @@ func (r *RepoReconciler) updatePipelineRunStatus(ctx context.Context, repo *alph
 		return err
 	}
 
-	repo.Status.Pipeline = &alphav1.PipelineStatus{
-		Ref: &corev1.ObjectReference{
-			Name:       pipelineRun.GetName(),
-			Namespace:  pipelineRun.GetNamespace(),
-			Kind:       pipelineRun.Kind,
-			APIVersion: pipelineRun.APIVersion,
-			UID:        pipelineRun.GetUID(),
-		},
+	runStatus.Ref = &corev1.ObjectReference{
+		Name:       pipelineRun.GetName(),
+		Namespace:  pipelineRun.GetNamespace(),
+		Kind:       pipelineRun.Kind,
+		APIVersion: pipelineRun.APIVersion,
+		UID:        pipelineRun.GetUID(),
 	}
 
 	for _, condition := range pipelineRun.Status.Conditions {
 		if condition.Type == knative.ConditionSucceeded {
-			repo.Status.Pipeline.Status = condition.Reason
-			repo.Status.Pipeline.Succeeded = condition.IsTrue()
+			runStatus.Status = condition.Reason
+			runStatus.Succeeded = condition.IsTrue()
 		}
 	}
 	return nil
 }
 
-func (r *RepoReconciler) ensurePipelineForRepo(ctx context.Context, repo *alphav1.Repo, cfg *alaska.Config) error {
+func (r *RepoReconciler) ensurePipelineForRepo(ctx context.Context, repo *alphav1.Repo, cfg *alphav1.Config) error {
 	query := types.NamespacedName{
 		Namespace: repo.GetNamespace(),
 		Name:      repo.GetName(),

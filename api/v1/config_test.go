@@ -1,4 +1,4 @@
-package alaska
+package v1
 
 import (
 	. "github.com/onsi/ginkgo"

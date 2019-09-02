@@ -39,8 +39,9 @@ type PipelineStatus struct {
 // RepoStatus defines the observed state of Repo
 type RepoStatus struct {
 	CommitSHA string                  `json:"commitSHA,omitempty"`
+	Config    *Config                 `json:"config,omitempty"`
 	TektonRef *corev1.ObjectReference `json:"tektonRef,omitempty"`
-	Pipeline  *PipelineStatus         `json:"pipeline,omitempty"`
+	Runs      []*PipelineStatus       `json:"runs,omitempty"`
 }
 
 // +kubebuilder:object:root=true
