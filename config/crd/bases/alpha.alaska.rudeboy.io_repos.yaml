@@ -51,11 +51,18 @@ spec:
             commitSHA:
               type: string
             config:
-              description: Config is some config
+              description: Config is repo config
               properties:
                 paths:
                   items:
-                    type: string
+                    description: ManifestOptions describes the path to a manifest
+                      and its type
+                    properties:
+                      path:
+                        type: string
+                      type:
+                        type: string
+                    type: object
                   type: array
               type: object
             runs:

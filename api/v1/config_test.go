@@ -12,7 +12,7 @@ var _ = Describe("Config.ToPipelineSpec tests", func() {
 
 		BeforeEach(func() {
 			cfg = &Config{
-				Paths: []string{"test.yaml"},
+				Manifests: []*ManifestOptions{&ManifestOptions{Path: "test.yaml"}},
 			}
 		})
 

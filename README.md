@@ -36,11 +36,12 @@ Nope, coming soon! :sweat_smile:
 
 ### controller
 
+- [ ] remote helm charts with local values.yaml
 - [ ] multi-cluster deploys
 - [ ] ConfigMap configuration option
 - [ ] configurable ordering (apply `crds/` then apply `manifests/`, etc)
 - [ ] define `kustomize` executor
-- [ ] define `helm` executor
+- [x] define `helm` executor
 - [x] define `kubectl` executor
 - [x] specify multiple paths for manifests
 - [x] fetch `alaska.yaml` from repo for additional configuration

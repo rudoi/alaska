@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"path"
 
 	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 )
@@ -10,12 +11,19 @@ type Executor string
 
 const (
 	// ExecutorDefault is the name of the ClusterTask that execute kubectl
-	ExecutorDefault Executor = "alaska-kubectl-executor"
+	ExecutorDefault Executor = "kubectl"
+	ExecutorHelm    Executor = "helm"
 )
 
-// Config is some config
+// Config is repo config
 type Config struct {
-	Paths []string `json:"paths,omitempty"`
+	Manifests []*ManifestOptions `json:"paths,omitempty"`
+}
+
+// ManifestOptions describes the path to a manifest and its type
+type ManifestOptions struct {
+	Path string   `json:"path,omitempty"`
+	Type Executor `json:"type,omitempty"`
 }
 
 func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
@@ -33,18 +41,17 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 		Tasks: []tektonv1.PipelineTask{},
 	}
 
-	for i, path := range c.Paths {
+	for i, manifest := range c.Manifests {
+		var executor Executor
+		if manifest.Type == "" {
+			executor = ExecutorDefault
+		} else {
+			executor = Executor(manifest.Type)
+		}
+
 		pipeline.Tasks = append(pipeline.Tasks, tektonv1.PipelineTask{
-			Name: fmt.Sprintf("task-%d", i),
-			Params: []tektonv1.Param{
-				{
-					Name: "path",
-					Value: tektonv1.ArrayOrString{
-						Type:      tektonv1.ParamTypeString,
-						StringVal: path,
-					},
-				},
-			},
+			Name:   fmt.Sprintf("task-%d", i),
+			Params: manifest.ToParams(),
 			Resources: &tektonv1.PipelineTaskResources{
 				Inputs: []tektonv1.PipelineTaskInputResource{
 					{
@@ -58,10 +65,32 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 				},
 			},
 			TaskRef: tektonv1.TaskRef{
-				Name: string(ExecutorDefault),
+				Name: fmt.Sprintf("alaska-%s-executor", string(executor)),
 				Kind: tektonv1.ClusterTaskKind,
 			},
 		})
 	}
 	return pipeline
+}
+
+func (mo *ManifestOptions) ToParams() (params []tektonv1.Param) {
+	params = append(params, tektonv1.Param{
+		Name: "path",
+		Value: tektonv1.ArrayOrString{
+			Type:      tektonv1.ParamTypeString,
+			StringVal: mo.Path,
+		},
+	})
+
+	if mo.Type == ExecutorHelm {
+		params = append(params, tektonv1.Param{
+			Name: "release",
+			Value: tektonv1.ArrayOrString{
+				Type:      tektonv1.ParamTypeString,
+				StringVal: path.Base(mo.Path),
+			},
+		})
+	}
+
+	return
 }

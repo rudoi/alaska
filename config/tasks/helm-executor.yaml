@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1alpha1
+kind: ClusterTask
+metadata:
+  name: alaska-helm-executor
+spec:
+  inputs:
+    params:
+    - name: path
+      type: string
+    - name: release
+      type: string
+    resources:
+    - name: repo
+      type: git
+    - name: cluster
+      type: cluster
+  steps:
+  - name: helm-install
+    image: andrewrudoi/helm:latest
+    command: ["helm"]
+    args:
+      - "--kubeconfig"
+      - "/workspace/${inputs.resources.cluster.name}/kubeconfig"
+      - "upgrade"
+      - "--install"
+      - "${inputs.params.release}"
+      - "/workspace/repo/${inputs.params.path}"
