@@ -10,9 +10,14 @@ import (
 type Executor string
 
 const (
-	// ExecutorDefault is the name of the ClusterTask that execute kubectl
+	// ExecutorDefault is the executor that executes kubectl
 	ExecutorDefault Executor = "kubectl"
-	ExecutorHelm    Executor = "helm"
+
+	// ExecutorHelm is the executor that executes helm
+	ExecutorHelm Executor = "helm"
+
+	// Executor Task name format string
+	ExecutorTaskNameFormatString = "alaska-%s-executor"
 )
 
 // Config is repo config
@@ -65,7 +70,7 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 				},
 			},
 			TaskRef: tektonv1.TaskRef{
-				Name: fmt.Sprintf("alaska-%s-executor", string(executor)),
+				Name: executor.toTaskName(),
 				Kind: tektonv1.ClusterTaskKind,
 			},
 		})
@@ -93,4 +98,8 @@ func (mo *ManifestOptions) ToParams() (params []tektonv1.Param) {
 	}
 
 	return
+}
+
+func (e Executor) toTaskName() string {
+	return fmt.Sprintf(ExecutorTaskNameFormatString, string(e))
 }
