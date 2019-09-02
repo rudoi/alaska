@@ -28,6 +28,24 @@ spec:
 
 This watches for changes in the `rudoi/alaska-test` GitHub repository on the `master` branch. Manifests specified in the `alaska.yaml` in the root of that repository are applied to the `pizza` Kubernetes cluster. The controller expects there to be a Tekton [PipelineResource](https://github.com/tektoncd/pipeline/blob/master/docs/resources.md#cluster-resource) of type `cluster` in the same namespace as the `Repo` object.
 
+## Configuration
+
+Here's an annotated example `alaska.yaml`:
+
+```yaml
+manifests:
+  # kubectl apply -f configmap.yaml
+  - path: configmap.yaml
+
+  # helm upgrade --install charts/test-chart test-chart
+  - path: charts/test-chart
+    type: helm
+```
+
+The controller, upon seeing new commits to the repo, will perform the actions in the comments above.
+
+**note**: the Tekton ClusterTask that invokes `helm` is hard-coded to use [Helm 3.0.0-beta.2](https://github.com/helm/helm/releases/tag/v3.0.0-beta.2).
+
 ## Getting Started
 
 Nope, coming soon! :sweat_smile:
@@ -36,6 +54,7 @@ Nope, coming soon! :sweat_smile:
 
 ### controller
 
+- [ ] configurable target namespace
 - [ ] remote helm charts with local values.yaml
 - [ ] multi-cluster deploys
 - [ ] ConfigMap configuration option
@@ -53,7 +72,7 @@ stretch goals:
 
 - [ ] object-granular status reporting
 - [ ] pull request actions
-- [ ] define generic executor
+- [ ] define generic executor (use image x, run command y, etc)
 
 ### `akctl` CLI
 
