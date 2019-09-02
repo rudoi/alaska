@@ -57,6 +57,7 @@ stretch goals:
 ### `akctl` CLI
 
 - [ ] create Repo with any required credentials (in single command)
+- [x] manually retry latest build for a repo
 - [x] create serviceaccount and generate Kubernetes credentials for Alaska controller to use (in single command)
 
 ## Should I use this?
