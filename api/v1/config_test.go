@@ -7,7 +7,7 @@ import (
 )
 
 var _ = Describe("Config.ToPipelineSpec tests", func() {
-	Context("given a config with a valid path", func() {
+	Context("given a config with a valid kubectl manifest path", func() {
 		var cfg *Config
 
 		BeforeEach(func() {
@@ -53,7 +53,77 @@ var _ = Describe("Config.ToPipelineSpec tests", func() {
 							},
 						},
 						TaskRef: tektonv1.TaskRef{
-							Name: string(ExecutorDefault),
+							Name: ExecutorDefault.toTaskName(),
+							Kind: tektonv1.ClusterTaskKind,
+						},
+					},
+				},
+			}
+
+			pipeline := cfg.ToPipelineSpec()
+			Expect(pipeline).To(Equal(expected))
+		})
+	})
+
+	Context("given a config with a valid helm chart path", func() {
+		var cfg *Config
+
+		BeforeEach(func() {
+			cfg = &Config{
+				Manifests: []*ManifestOptions{
+					{
+						Path: "path/to/chart",
+						Type: ExecutorHelm,
+					},
+				},
+			}
+		})
+
+		It("should return a pipeline spec with one task", func() {
+			expected := tektonv1.PipelineSpec{
+				Resources: []tektonv1.PipelineDeclaredResource{
+					{
+						Name: "repo",
+						Type: tektonv1.PipelineResourceTypeGit,
+					},
+					{
+						Name: "cluster",
+						Type: tektonv1.PipelineResourceTypeCluster,
+					},
+				},
+				Tasks: []tektonv1.PipelineTask{
+					{
+						Name: "task-0",
+						Params: []tektonv1.Param{
+							{
+								Name: "path",
+								Value: tektonv1.ArrayOrString{
+									Type:      tektonv1.ParamTypeString,
+									StringVal: "path/to/chart",
+								},
+							},
+							{
+								Name: "release",
+								Value: tektonv1.ArrayOrString{
+									Type:      tektonv1.ParamTypeString,
+									StringVal: "chart",
+								},
+							},
+						},
+						Resources: &tektonv1.PipelineTaskResources{
+							Inputs: []tektonv1.PipelineTaskInputResource{
+								{
+									Name:     "repo",
+									Resource: "repo",
+								},
+								{
+									Name:     "cluster",
+									Resource: "cluster",
+								},
+							},
+						},
+						TaskRef: tektonv1.TaskRef{
+							Name: ExecutorHelm.toTaskName(),
 							Kind: tektonv1.ClusterTaskKind,
 						},
 					},
