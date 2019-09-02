@@ -14,7 +14,7 @@ spec:
       type: cluster
   steps:
   - name: kubectl-apply
-    image: andrewrudoi/kubectl:latest
+    image: andrewrudoi/kubectl:v1.15.2
     command: ["kubectl"]
     args:
       - "--kubeconfig"

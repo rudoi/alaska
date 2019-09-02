@@ -44,7 +44,12 @@ manifests:
 
 The controller, upon seeing new commits to the repo, will perform the actions in the comments above.
 
-**note**: the Tekton ClusterTask that invokes `helm` is hard-coded to use [Helm 3.0.0-beta.2](https://github.com/helm/helm/releases/tag/v3.0.0-beta.2).
+While this is a mega super hyper alpha, versions are hard-coded as follows:
+
+|   tool    |    version    |
+| :-------: | :-----------: |
+| `kubectl` |    v1.15.2    |
+|  `helm`   | v3.0.0-beta.2 |
 
 ## Getting Started
 
@@ -54,6 +59,7 @@ Nope, coming soon! :sweat_smile:
 
 ### controller
 
+- [ ] configurable `kubectl` / `helm` / `kustomize` versions
 - [ ] configurable target namespace
 - [ ] remote helm charts with local values.yaml
 - [ ] multi-cluster deploys
