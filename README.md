@@ -33,6 +33,8 @@ This watches for changes in the `rudoi/alaska-test` GitHub repository on the `ma
 Here's an annotated example `alaska.yaml`:
 
 ```yaml
+# execute in order ("sequential") or simultaneously ("parallel") - default is "parallel"
+strategy: sequential
 manifests:
   # kubectl apply -f configmap.yaml
   - path: configmap.yaml
@@ -64,8 +66,8 @@ Nope, coming soon! :sweat_smile:
 - [ ] remote helm charts with local values.yaml
 - [ ] multi-cluster deploys
 - [ ] ConfigMap configuration option
-- [ ] configurable ordering (apply `crds/` then apply `manifests/`, etc)
 - [ ] define `kustomize` executor
+- [x] configurable ordering (apply `crds/` then apply `manifests/`, etc)
 - [x] define `helm` executor
 - [x] define `kubectl` executor
 - [x] specify multiple paths for manifests
@@ -76,6 +78,7 @@ Nope, coming soon! :sweat_smile:
 
 stretch goals:
 
+- [ ] individually parallellized stage configuration
 - [ ] object-granular status reporting
 - [ ] pull request actions
 - [ ] define generic executor (use image x, run command y, etc)
