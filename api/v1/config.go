@@ -20,9 +20,17 @@ const (
 	ExecutorTaskNameFormatString = "alaska-%s-executor"
 )
 
+type Strategy string
+
+const (
+	StrategyDefault    Strategy = "parallel"
+	StrategySequential Strategy = "sequential"
+)
+
 // Config is repo config
 type Config struct {
 	Manifests []*ManifestOptions `json:"paths,omitempty"`
+	Strategy  Strategy           `json:"strategy,omitempty"`
 }
 
 // ManifestOptions describes the path to a manifest and its type
@@ -54,7 +62,7 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 			executor = Executor(manifest.Type)
 		}
 
-		pipeline.Tasks = append(pipeline.Tasks, tektonv1.PipelineTask{
+		task := tektonv1.PipelineTask{
 			Name:   fmt.Sprintf("task-%d", i),
 			Params: manifest.ToParams(),
 			Resources: &tektonv1.PipelineTaskResources{
@@ -73,7 +81,13 @@ func (c *Config) ToPipelineSpec() tektonv1.PipelineSpec {
 				Name: executor.toTaskName(),
 				Kind: tektonv1.ClusterTaskKind,
 			},
-		})
+		}
+
+		if c.Strategy == StrategySequential && i > 0 {
+			task.RunAfter = []string{fmt.Sprintf("task-%d", i-1)}
+		}
+
+		pipeline.Tasks = append(pipeline.Tasks, task)
 	}
 	return pipeline
 }
